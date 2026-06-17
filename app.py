@@ -43,10 +43,19 @@ with gr.Blocks(title="Tiny Transformer") as demo:
         with gr.Column():
             prompt = gr.Textbox(value="To be", label="Prompt", lines=5)
             max_new_tokens = gr.Slider(8, 240, value=120, step=1, label="New tokens")
-            temperature = gr.Slider(0.2, 1.5, value=0.55, step=0.05, label="Temperature")
-            top_k = gr.Slider(1, 30, value=10, step=1, label="Top-k")
+            temperature = gr.Slider(0.2, 1.5, value=0.35, step=0.05, label="Temperature")
+            top_k = gr.Slider(1, 30, value=3, step=1, label="Top-k")
             button = gr.Button("Generate", variant="primary")
         output = gr.Textbox(label="Output", lines=16)
+
+    gr.Examples(
+        examples=[
+            ["To be", 120, 0.35, 3],
+            ["Attention", 120, 0.35, 3],
+            ["The model", 120, 0.35, 3],
+        ],
+        inputs=[prompt, max_new_tokens, temperature, top_k],
+    )
 
     button.click(
         generate_text,

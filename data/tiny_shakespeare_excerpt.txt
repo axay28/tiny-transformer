@@ -8,3 +8,62 @@ The model does not know the world yet.
 It learns by watching one symbol follow another.
 Attention lets every token ask the past what matters now.
 Small code can still carry a large idea.
+
+Now is the winter of our discontent
+Made glorious summer by this sun of York.
+
+All the world's a stage,
+And all the men and women merely players.
+They have their exits and their entrances,
+And one person in a time plays many parts.
+
+Some are born great, some achieve greatness,
+And some have greatness thrust upon them.
+
+The fault is not in our stars,
+But in ourselves, that we are underlings.
+
+This above all: to thine own self be true,
+And it must follow, as the night the day,
+Thou canst not then be false to any person.
+
+A tiny transformer is a small language model.
+It reads a window of tokens and predicts the next token.
+The token embedding gives each symbol a learned vector.
+The position embedding tells the model where the symbol appears.
+Self-attention lets each token compare itself with earlier tokens.
+A causal mask blocks the future so the model cannot cheat.
+The feed-forward network transforms each position after attention.
+Layer normalization keeps the hidden states stable.
+Residual connections help gradients move through the network.
+
+During training, the model sees many short slices of text.
+For every character in a slice, it tries to predict the next character.
+The loss is cross entropy between predicted logits and true next tokens.
+AdamW updates the weights so likely next tokens become more likely.
+
+During generation, the model starts from a prompt.
+It predicts one token, appends it, and predicts again.
+Temperature controls how bold the sampling is.
+Top-k sampling keeps only the most likely choices.
+Low temperature makes the model conservative.
+Higher temperature makes the model more surprising.
+
+This project builds the pieces directly in PyTorch.
+It includes tokenization, batching, causal attention, training,
+checkpointing, generation, a heatmap export, and a hosted demo.
+
+To be, or not to be, that is the question.
+Whether the model should speak with order,
+Or drift through noise and stumble into symbols,
+Depends on data, training, and sampling.
+
+Attention asks the past what matters now.
+The present token looks backward through the sequence.
+Some earlier words become bright with importance.
+Other earlier words fade into the background.
+
+The small model does not know the whole world.
+It knows only the training text it has seen.
+But even a small model can reveal the core idea:
+language is prediction shaped by context.
