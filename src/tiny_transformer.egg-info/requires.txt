@@ -1,0 +1,7 @@
+numpy>=2.0
+torch>=2.2
+tqdm>=4.66
+
+[dev]
+pytest>=8.0
+ruff>=0.5
