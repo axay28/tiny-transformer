@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import gradio as gr
 import torch
+
+sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from tiny_transformer.train import load_checkpoint
 
