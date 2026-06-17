@@ -1,2 +1,0 @@
-[console_scripts]
-tiny-transformer = tiny_transformer.cli:main
