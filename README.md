@@ -9,6 +9,12 @@ pinned: false
 
 A compact GPT-style language model built from scratch in PyTorch. This repo is designed to show the fundamentals recruiters actually care about: clean architecture, readable math, reproducible training, tests, and an end-to-end demo path from raw text to generated tokens.
 
+## Hosted Playground
+
+[Try the Gradio demo on Hugging Face Spaces](https://huggingface.co/spaces/axay28/tiny-transformer).
+
+![Tiny Transformer Hugging Face Space with prompt, generation controls, and examples](docs/assets/huggingface-space.jpg)
+
 ## What Makes This Worth Looking At
 
 - Implements a decoder-only Transformer without Hugging Face or high-level training frameworks.
