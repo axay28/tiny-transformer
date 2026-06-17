@@ -1,0 +1,10 @@
+To be, or not to be, that is the question:
+Whether 'tis nobler in the mind to suffer
+The slings and arrows of outrageous fortune,
+Or to take arms against a sea of troubles
+And by opposing end them.
+
+The model does not know the world yet.
+It learns by watching one symbol follow another.
+Attention lets every token ask the past what matters now.
+Small code can still carry a large idea.
