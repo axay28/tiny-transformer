@@ -42,8 +42,8 @@ with gr.Blocks(title="Tiny Transformer") as demo:
     with gr.Row():
         with gr.Column():
             prompt = gr.Textbox(value="To be", label="Prompt", lines=5)
-            max_new_tokens = gr.Slider(8, 240, value=80, step=1, label="New tokens")
-            temperature = gr.Slider(0.2, 1.5, value=0.8, step=0.05, label="Temperature")
+            max_new_tokens = gr.Slider(8, 240, value=120, step=1, label="New tokens")
+            temperature = gr.Slider(0.2, 1.5, value=0.55, step=0.05, label="Temperature")
             top_k = gr.Slider(1, 30, value=10, step=1, label="Top-k")
             button = gr.Button("Generate", variant="primary")
         output = gr.Textbox(label="Output", lines=16)
