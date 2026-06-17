@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tiny-transformer"
+version = "0.1.0"
+description = "A compact GPT-style Transformer built from scratch in PyTorch."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Akshay Mulgund" }]
+dependencies = [
+    "numpy>=2.0",
+    "torch>=2.2",
+    "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.5",
+]
+
+[project.scripts]
+tiny-transformer = "tiny_transformer.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
