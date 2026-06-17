@@ -13,7 +13,7 @@ A compact GPT-style language model built from scratch in PyTorch. This repo is d
 
 [Try the Gradio demo on Hugging Face Spaces](https://huggingface.co/spaces/axay28/tiny-transformer).
 
-![Tiny Transformer Hugging Face Space with prompt, generation controls, and examples](docs/assets/huggingface-space.jpg)
+![Tiny Transformer Hugging Face Space showing prompt, generation controls, and model output](docs/assets/huggingface-space.png)
 
 ## What Makes This Worth Looking At
 
