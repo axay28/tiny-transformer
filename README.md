@@ -54,6 +54,16 @@ Launch the local playground:
 tiny-transformer serve --checkpoint runs/tiny-transformer.pt
 ```
 
+Deploy the hosted playground:
+
+```bash
+pip install huggingface_hub
+hf auth login
+hf repos create axay28/tiny-transformer --type space --space-sdk gradio --public --exist-ok
+git remote add space https://huggingface.co/spaces/axay28/tiny-transformer
+git push space main
+```
+
 Run tests:
 
 ```bash
