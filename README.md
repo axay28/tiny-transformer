@@ -1,3 +1,10 @@
+---
+title: Tiny Transformer
+sdk: gradio
+app_file: app.py
+pinned: false
+---
+
 # Tiny Transformer
 
 A compact GPT-style language model built from scratch in PyTorch. This repo is designed to show the fundamentals recruiters actually care about: clean architecture, readable math, reproducible training, tests, and an end-to-end demo path from raw text to generated tokens.
