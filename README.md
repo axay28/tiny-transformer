@@ -144,3 +144,15 @@ ModelConfig(
 ```
 
 Increase `n_layer`, `n_head`, and `n_embd` for a stronger demo once the training loop is validated.
+
+## Model Card
+
+The hosted Gradio demo uses a deliberately tiny character-level checkpoint trained on the
+sample corpus in `data/tiny_shakespeare_excerpt.txt`. The checkpoint is meant to demonstrate
+the end-to-end Transformer pipeline: tokenization, causal masking, training, checkpoint
+loading, and top-k sampling.
+
+This model is useful for inspecting architecture and generation mechanics, not for factual
+answers or broad language understanding. Its outputs are best with prompts similar to the
+sample corpus, such as `To be`, `Attention`, or `The model`. Higher temperature settings can
+produce noisy text because the model is intentionally small and trained on a compact dataset.
