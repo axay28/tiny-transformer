@@ -29,8 +29,14 @@ class TrainConfig:
     max_steps: int = 1_000
     eval_interval: int = 100
     eval_batches: int = 20
+    grad_accum_steps: int = 1
+    use_amp: bool = False
     seed: int = 1337
     output_path: str = "runs/tiny-transformer.pt"
 
-    def to_dict(self) -> dict[str, int | float | str]:
+    def __post_init__(self) -> None:
+        if self.grad_accum_steps <= 0:
+            raise ValueError("grad_accum_steps must be positive")
+
+    def to_dict(self) -> dict[str, bool | int | float | str]:
         return asdict(self)

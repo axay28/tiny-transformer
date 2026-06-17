@@ -1,9 +1,9 @@
 """Tiny Transformer: a minimal GPT-style language model."""
 
 from tiny_transformer.config import ModelConfig, TrainConfig
-from tiny_transformer.tokenizer import CharTokenizer
+from tiny_transformer.tokenizer import BytePairTokenizer, CharTokenizer
 
-__all__ = ["CharTokenizer", "ModelConfig", "TinyTransformer", "TrainConfig"]
+__all__ = ["BytePairTokenizer", "CharTokenizer", "ModelConfig", "TinyTransformer", "TrainConfig"]
 
 
 def __getattr__(name: str):

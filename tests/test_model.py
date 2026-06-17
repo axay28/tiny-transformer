@@ -31,3 +31,15 @@ def test_generation_extends_sequence() -> None:
     out = model.generate(x, max_new_tokens=5, top_k=3)
 
     assert out.shape == (1, 8)
+
+
+def test_attention_maps_have_layer_head_and_causal_shape() -> None:
+    config = ModelConfig(vocab_size=7, block_size=6, n_layer=2, n_head=2, n_embd=8, dropout=0.0)
+    model = TinyTransformer(config)
+    x = torch.zeros((1, 4), dtype=torch.long)
+
+    maps = model.attention_maps(x)
+
+    assert len(maps) == config.n_layer
+    assert maps[0].shape == (1, config.n_head, 4, 4)
+    assert torch.all(maps[0][0, 0].triu(1) == 0)

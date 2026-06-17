@@ -6,9 +6,9 @@ A compact GPT-style language model built from scratch in PyTorch. This repo is d
 
 - Implements a decoder-only Transformer without Hugging Face or high-level training frameworks.
 - Includes causal self-attention, multi-head attention, residual blocks, layer norm, embeddings, generation, and checkpointing.
-- Ships with a tiny character tokenizer so the model can train on any plain-text file.
+- Ships with character and byte-pair encoding tokenizers so the model can train on any plain-text file.
 - Keeps the code small enough to understand in one sitting, but structured like production Python.
-- Includes smoke tests for masking, shapes, tokenization, and generation behavior.
+- Includes smoke tests for masking, shapes, tokenization, attention export, and generation behavior.
 
 ## Quickstart
 
@@ -24,10 +24,34 @@ Train on the included sample text:
 tiny-transformer train --data data/tiny_shakespeare_excerpt.txt --steps 300 --device cpu
 ```
 
+Use the optional BPE tokenizer, gradient accumulation, and mixed precision when you want a stronger local run:
+
+```bash
+tiny-transformer train \
+  --data data/tiny_shakespeare_excerpt.txt \
+  --tokenizer bpe \
+  --bpe-vocab-size 128 \
+  --grad-accum-steps 4 \
+  --amp \
+  --device mps
+```
+
 Generate text from a checkpoint:
 
 ```bash
 tiny-transformer generate --checkpoint runs/tiny-transformer.pt --prompt "To be" --max-new-tokens 160
+```
+
+Export an attention heatmap:
+
+```bash
+tiny-transformer attention --checkpoint runs/tiny-transformer.pt --prompt "To be" --output runs/attention.svg
+```
+
+Launch the local playground:
+
+```bash
+tiny-transformer serve --checkpoint runs/tiny-transformer.pt
 ```
 
 Run tests:
@@ -46,6 +70,8 @@ src/tiny_transformer/
   model.py        GPT-style Transformer implementation
   tokenizer.py    Character-level tokenizer
   train.py        Training loop, evaluation, checkpointing
+  visualize.py    Attention heatmap export
+  web.py          Local generation playground
 tests/            Unit and smoke tests
 data/             Tiny sample corpus
 ```
@@ -64,24 +90,24 @@ The attention mask is causal, so each position can only attend to itself and pre
 
 ```mermaid
 flowchart LR
-    A["Raw text corpus"] --> B["Character tokenizer"]
+    A["Raw text corpus"] --> B["Char or BPE tokenizer"]
     B --> C["Token IDs"]
     C --> D["Contiguous train/val batches"]
     D --> E["Token + position embeddings"]
-    E --> F["Transformer block x N"]
-    F --> G["Final layer norm"]
+    E --> F1["LayerNorm"]
+    F1 --> F2["Masked multi-head self-attention"]
+    F2 --> F3["Residual add"]
+    F3 --> F4["LayerNorm"]
+    F4 --> F5["Feed-forward MLP"]
+    F5 --> F6["Residual add"]
+    F6 --> F7["Repeat for N layers"]
+    F7 --> G["Final layer norm"]
     G --> H["Language modeling head"]
     H --> I["Next-token logits"]
     I --> J["Cross-entropy loss during training"]
     I --> K["Top-k sampling during generation"]
-
-    subgraph Block["Transformer block"]
-        L["LayerNorm"] --> M["Causal multi-head self-attention"]
-        M --> N["Residual add"]
-        N --> O["LayerNorm"]
-        O --> P["Feed-forward MLP"]
-        P --> Q["Residual add"]
-    end
+    F2 --> L["Attention heatmap export"]
+    K --> M["Local web playground"]
 ```
 
 ## Example Configuration
@@ -101,18 +127,3 @@ ModelConfig(
 ```
 
 Increase `n_layer`, `n_head`, and `n_embd` for a stronger demo once the training loop is validated.
-
-## Portfolio Talking Points
-
-- Why pre-layer-norm improves optimization stability.
-- How causal masking prevents label leakage during next-token prediction.
-- The tradeoff between character tokenization simplicity and sequence length.
-- Why batching contiguous chunks is a good minimal language-modeling baseline.
-- How temperature and top-k sampling change generation quality.
-
-## Roadmap
-
-- Add byte-pair encoding as an optional tokenizer.
-- Add a web playground for interactive generation.
-- Add attention heatmap visualization.
-- Add mixed precision and gradient accumulation for larger local runs.
