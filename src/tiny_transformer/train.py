@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 from pathlib import Path
 
 import torch
@@ -34,6 +35,15 @@ def estimate_loss(
     return losses
 
 
+def save_loss_history(history: list[dict[str, float | int]], path: str) -> None:
+    output = Path(path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("w", encoding="utf-8", newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=["step", "train_loss", "val_loss"])
+        writer.writeheader()
+        writer.writerows(history)
+
+
 def train_from_text(
     text: str,
     model_config: ModelConfig | None = None,
@@ -61,6 +71,7 @@ def train_from_text(
     device_type = "cuda" if device.startswith("cuda") else "mps" if device == "mps" else "cpu"
     amp_enabled = train_config.use_amp and device_type in {"cuda", "mps"}
     scaler = torch.amp.GradScaler("cuda", enabled=amp_enabled and device_type == "cuda")
+    loss_history: list[dict[str, float | int]] = []
 
     progress = trange(train_config.max_steps, desc="training", leave=True)
     for step in progress:
@@ -69,6 +80,13 @@ def train_from_text(
                 model, train_data, val_data, train_config.batch_size, train_config.eval_batches
             )
             progress.set_postfix(train=f"{losses['train']:.3f}", val=f"{losses['val']:.3f}")
+            loss_history.append(
+                {
+                    "step": step,
+                    "train_loss": losses["train"],
+                    "val_loss": losses["val"],
+                }
+            )
 
         optimizer.zero_grad(set_to_none=True)
         for _ in range(train_config.grad_accum_steps):
@@ -82,6 +100,8 @@ def train_from_text(
         scaler.step(optimizer)
         scaler.update()
 
+    if train_config.loss_history_path:
+        save_loss_history(loss_history, train_config.loss_history_path)
     save_checkpoint(model, tokenizer, train_config.output_path)
     return model
 

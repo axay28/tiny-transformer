@@ -83,6 +83,31 @@ Run tests:
 pytest
 ```
 
+## Training Loss Artifact
+
+The demo training run records train and validation loss at evaluation intervals. The committed example below was generated on CPU from the included sample corpus.
+
+![Training loss curve](docs/assets/training-loss.svg)
+
+Reproduce the CSV artifact:
+
+```bash
+tiny-transformer train \
+  --data data/tiny_shakespeare_excerpt.txt \
+  --output runs/loss-curve-demo.pt \
+  --steps 80 \
+  --batch-size 16 \
+  --block-size 32 \
+  --layers 2 \
+  --heads 2 \
+  --embedding 64 \
+  --learning-rate 0.001 \
+  --eval-interval 10 \
+  --eval-batches 4 \
+  --device cpu \
+  --loss-history docs/assets/training-loss.csv
+```
+
 ## Project Layout
 
 ```text

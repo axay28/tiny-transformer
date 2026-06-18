@@ -27,10 +27,13 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--embedding", type=int, default=128)
     train.add_argument("--dropout", type=float, default=0.1)
     train.add_argument("--learning-rate", type=float, default=3e-4)
+    train.add_argument("--eval-interval", type=int, default=100)
+    train.add_argument("--eval-batches", type=int, default=20)
     train.add_argument("--tokenizer", choices=["char", "bpe"], default="char")
     train.add_argument("--bpe-vocab-size", type=int, default=256)
     train.add_argument("--grad-accum-steps", type=int, default=1)
     train.add_argument("--amp", action="store_true", help="Use mixed precision on CUDA or MPS.")
+    train.add_argument("--loss-history", help="Optional CSV path for train/validation loss history.")
 
     generate = subparsers.add_parser("generate", help="Generate text from a trained checkpoint.")
     generate.add_argument("--checkpoint", required=True, help="Path to a model checkpoint.")
@@ -63,9 +66,12 @@ def train_command(args: argparse.Namespace) -> None:
         batch_size=args.batch_size,
         learning_rate=args.learning_rate,
         max_steps=args.steps,
+        eval_interval=args.eval_interval,
+        eval_batches=args.eval_batches,
         grad_accum_steps=args.grad_accum_steps,
         use_amp=args.amp,
         output_path=args.output,
+        loss_history_path=args.loss_history,
     )
     model_config = ModelConfig(
         vocab_size=1,

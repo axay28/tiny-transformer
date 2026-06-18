@@ -33,10 +33,11 @@ class TrainConfig:
     use_amp: bool = False
     seed: int = 1337
     output_path: str = "runs/tiny-transformer.pt"
+    loss_history_path: str | None = None
 
     def __post_init__(self) -> None:
         if self.grad_accum_steps <= 0:
             raise ValueError("grad_accum_steps must be positive")
 
-    def to_dict(self) -> dict[str, bool | int | float | str]:
+    def to_dict(self) -> dict[str, bool | int | float | str | None]:
         return asdict(self)
