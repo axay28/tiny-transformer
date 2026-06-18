@@ -7,7 +7,7 @@ pinned: false
 
 # Tiny Transformer
 
-A compact GPT-style language model built from scratch in PyTorch. This repo is designed to show the fundamentals recruiters actually care about: clean architecture, readable math, reproducible training, tests, and an end-to-end demo path from raw text to generated tokens.
+A compact GPT-style language model built from scratch in PyTorch. The project includes clean architecture, readable math, reproducible training, tests, and an end-to-end demo path from raw text to generated tokens.
 
 ## Hosted Playground
 
@@ -15,7 +15,7 @@ A compact GPT-style language model built from scratch in PyTorch. This repo is d
 
 ![Tiny Transformer Hugging Face Space showing prompt, generation controls, and model output](docs/assets/huggingface-space.png)
 
-## What Makes This Worth Looking At
+## Features
 
 - Implements a decoder-only Transformer without Hugging Face or high-level training frameworks.
 - Includes causal self-attention, multi-head attention, residual blocks, layer norm, embeddings, generation, and checkpointing.
