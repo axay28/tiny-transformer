@@ -43,6 +43,33 @@ class CausalSelfAttention(nn.Module):
             return out, weights
         return out
 
+    def forward_cached(
+        self,
+        x: torch.Tensor,
+        past_key_value: tuple[torch.Tensor, torch.Tensor] | None = None,
+    ) -> tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
+        batch, seq_len, channels = x.shape
+        query, key, value = self.qkv(x).split(channels, dim=2)
+        query = query.view(batch, seq_len, self.n_head, self.head_dim).transpose(1, 2)
+        key = key.view(batch, seq_len, self.n_head, self.head_dim).transpose(1, 2)
+        value = value.view(batch, seq_len, self.n_head, self.head_dim).transpose(1, 2)
+
+        past_len = 0
+        if past_key_value is not None:
+            past_key, past_value = past_key_value
+            past_len = past_key.size(2)
+            key = torch.cat((past_key, key), dim=2)
+            value = torch.cat((past_value, value), dim=2)
+
+        total_len = key.size(2)
+        scores = query @ key.transpose(-2, -1) / math.sqrt(self.head_dim)
+        mask = self.causal_mask[:, :, past_len : past_len + seq_len, :total_len]
+        scores = scores.masked_fill(mask == 0, float("-inf"))
+        weights = self.attn_dropout(F.softmax(scores, dim=-1))
+        out = weights @ value
+        out = out.transpose(1, 2).contiguous().view(batch, seq_len, channels)
+        return self.resid_dropout(self.proj(out)), (key, value)
+
 
 class FeedForward(nn.Module):
     def __init__(self, config: ModelConfig) -> None:
@@ -79,6 +106,16 @@ class TransformerBlock(nn.Module):
         x = x + self.ffwd(self.ln_2(x))
         return x
 
+    def forward_cached(
+        self,
+        x: torch.Tensor,
+        past_key_value: tuple[torch.Tensor, torch.Tensor] | None = None,
+    ) -> tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor]]:
+        attn_out, present = self.attn.forward_cached(self.ln_1(x), past_key_value)
+        x = x + attn_out
+        x = x + self.ffwd(self.ln_2(x))
+        return x, present
+
 
 class TinyTransformer(nn.Module):
     def __init__(self, config: ModelConfig) -> None:
@@ -91,6 +128,7 @@ class TinyTransformer(nn.Module):
         self.ln_f = nn.LayerNorm(config.n_embd)
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size)
         self.apply(self._init_weights)
+        self.lm_head.weight = self.token_embedding.weight
 
     def _init_weights(self, module: nn.Module) -> None:
         if isinstance(module, nn.Linear):
@@ -134,6 +172,31 @@ class TinyTransformer(nn.Module):
             loss = F.cross_entropy(logits.view(batch * seq_len, -1), targets.view(batch * seq_len))
         return logits, loss, attentions
 
+    def _forward_cached(
+        self,
+        idx: torch.Tensor,
+        past_key_values: list[tuple[torch.Tensor, torch.Tensor]] | None = None,
+    ) -> tuple[torch.Tensor, list[tuple[torch.Tensor, torch.Tensor]]]:
+        _, seq_len = idx.shape
+        past_len = 0 if past_key_values is None else past_key_values[0][0].size(2)
+        if past_len + seq_len > self.config.block_size:
+            raise ValueError("Cached sequence length exceeds block_size")
+
+        positions = torch.arange(past_len, past_len + seq_len, device=idx.device)
+        x = self.dropout(self.token_embedding(idx) + self.position_embedding(positions))
+        presents = []
+        for layer, block in enumerate(self.blocks):
+            past = None if past_key_values is None else past_key_values[layer]
+            x, present = block.forward_cached(x, past)
+            presents.append(present)
+        return self.lm_head(self.ln_f(x)), presents
+
+    def parameter_count(self, trainable_only: bool = True) -> int:
+        parameters = self.parameters()
+        if trainable_only:
+            parameters = (parameter for parameter in parameters if parameter.requires_grad)
+        return sum(parameter.numel() for parameter in parameters)
+
     @torch.no_grad()
     def attention_maps(self, idx: torch.Tensor) -> list[torch.Tensor]:
         self.eval()
@@ -147,13 +210,32 @@ class TinyTransformer(nn.Module):
         max_new_tokens: int,
         temperature: float = 1.0,
         top_k: int | None = None,
+        use_cache: bool = True,
     ) -> torch.Tensor:
+        if max_new_tokens < 0:
+            raise ValueError("max_new_tokens must be non-negative")
         if temperature <= 0:
             raise ValueError("temperature must be positive")
+        if top_k is not None and top_k <= 0:
+            raise ValueError("top_k must be positive")
 
+        past_key_values = None
         for _ in range(max_new_tokens):
-            idx_cond = idx[:, -self.config.block_size :]
-            logits, _ = self(idx_cond)
+            if not use_cache:
+                idx_cond = idx[:, -self.config.block_size :]
+                logits, _ = self(idx_cond)
+            elif past_key_values is None:
+                idx_cond = idx[:, -self.config.block_size :]
+                logits, past_key_values = self._forward_cached(idx_cond)
+            else:
+                cached_length = past_key_values[0][0].size(2)
+                if cached_length >= self.config.block_size:
+                    idx_cond = idx[:, -self.config.block_size :]
+                    logits, past_key_values = self._forward_cached(idx_cond)
+                else:
+                    logits, past_key_values = self._forward_cached(
+                        idx[:, -1:], past_key_values
+                    )
             logits = logits[:, -1, :] / temperature
             if top_k is not None:
                 values, _ = torch.topk(logits, min(top_k, logits.size(-1)))

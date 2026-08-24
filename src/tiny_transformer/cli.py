@@ -6,7 +6,7 @@ from pathlib import Path
 import torch
 
 from tiny_transformer.config import ModelConfig, TrainConfig
-from tiny_transformer.train import load_checkpoint, train_from_text
+from tiny_transformer.train import evaluate_checkpoint, load_checkpoint, train_from_text
 from tiny_transformer.visualize import save_attention_heatmap
 from tiny_transformer.web import serve_playground
 
@@ -34,6 +34,7 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--grad-accum-steps", type=int, default=1)
     train.add_argument("--amp", action="store_true", help="Use mixed precision on CUDA or MPS.")
     train.add_argument("--loss-history", help="Optional CSV path for train/validation loss history.")
+    train.add_argument("--resume", help="Resume model and optimizer state from a checkpoint.")
 
     generate = subparsers.add_parser("generate", help="Generate text from a trained checkpoint.")
     generate.add_argument("--checkpoint", required=True, help="Path to a model checkpoint.")
@@ -56,6 +57,13 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
     serve.add_argument("--device", default="cpu")
+
+    evaluate = subparsers.add_parser("evaluate", help="Report loss and perplexity on a corpus.")
+    evaluate.add_argument("--checkpoint", required=True)
+    evaluate.add_argument("--data", required=True)
+    evaluate.add_argument("--device", default="cpu")
+    evaluate.add_argument("--batch-size", type=int, default=32)
+    evaluate.add_argument("--eval-batches", type=int, default=20)
 
     return parser
 
@@ -88,6 +96,7 @@ def train_command(args: argparse.Namespace) -> None:
         device=args.device,
         tokenizer_name=args.tokenizer,
         bpe_vocab_size=args.bpe_vocab_size,
+        resume_path=args.resume,
     )
     print(f"Saved checkpoint to {args.output}")
 
@@ -129,6 +138,19 @@ def serve_command(args: argparse.Namespace) -> None:
     )
 
 
+def evaluate_command(args: argparse.Namespace) -> None:
+    text = Path(args.data).read_text(encoding="utf-8")
+    metrics = evaluate_checkpoint(
+        args.checkpoint,
+        text,
+        batch_size=args.batch_size,
+        eval_batches=args.eval_batches,
+        device=args.device,
+    )
+    for name, value in metrics.items():
+        print(f"{name}: {value:.4f}" if isinstance(value, float) else f"{name}: {value}")
+
+
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
@@ -140,6 +162,8 @@ def main() -> None:
         attention_command(args)
     elif args.command == "serve":
         serve_command(args)
+    elif args.command == "evaluate":
+        evaluate_command(args)
     else:
         parser.error(f"Unknown command: {args.command}")
 

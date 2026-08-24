@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import math
 from pathlib import Path
 
 import torch
@@ -51,15 +52,23 @@ def train_from_text(
     device: str = "cpu",
     tokenizer_name: str = "char",
     bpe_vocab_size: int = 256,
+    resume_path: str | None = None,
 ) -> TinyTransformer:
     train_config = train_config or TrainConfig()
     torch.manual_seed(train_config.seed)
 
-    tokenizer = train_tokenizer(text, tokenizer_name, bpe_vocab_size)
+    resume_payload = torch.load(resume_path, map_location=device) if resume_path else None
+    tokenizer = (
+        tokenizer_from_dict(resume_payload["tokenizer"])
+        if resume_payload is not None
+        else train_tokenizer(text, tokenizer_name, bpe_vocab_size)
+    )
     token_ids = tokenizer.encode(text)
     train_ids, val_ids = split_tokens(token_ids)
 
-    if model_config is None:
+    if resume_payload is not None:
+        model_config = ModelConfig(**resume_payload["model_config"])
+    elif model_config is None:
         model_config = ModelConfig(vocab_size=tokenizer.vocab_size)
     else:
         model_config = ModelConfig(**{**model_config.to_dict(), "vocab_size": tokenizer.vocab_size})
@@ -67,13 +76,18 @@ def train_from_text(
     train_data = TextDataset(train_ids, model_config.block_size, device)
     val_data = TextDataset(val_ids, model_config.block_size, device)
     model = TinyTransformer(model_config).to(device)
+    if resume_payload is not None:
+        model.load_state_dict(resume_payload["model_state"])
     optimizer = torch.optim.AdamW(model.parameters(), lr=train_config.learning_rate)
+    if resume_payload is not None and "optimizer_state" in resume_payload:
+        optimizer.load_state_dict(resume_payload["optimizer_state"])
+    start_step = int(resume_payload.get("step", 0)) if resume_payload is not None else 0
     device_type = "cuda" if device.startswith("cuda") else "mps" if device == "mps" else "cpu"
     amp_enabled = train_config.use_amp and device_type in {"cuda", "mps"}
     scaler = torch.amp.GradScaler("cuda", enabled=amp_enabled and device_type == "cuda")
     loss_history: list[dict[str, float | int]] = []
 
-    progress = trange(train_config.max_steps, desc="training", leave=True)
+    progress = trange(start_step, train_config.max_steps, desc="training", leave=True)
     for step in progress:
         if step % train_config.eval_interval == 0 or step == train_config.max_steps - 1:
             losses = estimate_loss(
@@ -102,7 +116,14 @@ def train_from_text(
 
     if train_config.loss_history_path:
         save_loss_history(loss_history, train_config.loss_history_path)
-    save_checkpoint(model, tokenizer, train_config.output_path)
+    save_checkpoint(
+        model,
+        tokenizer,
+        train_config.output_path,
+        optimizer=optimizer,
+        step=train_config.max_steps,
+        train_config=train_config,
+    )
     return model
 
 
@@ -114,17 +135,28 @@ def train_tokenizer(text: str, tokenizer_name: str, bpe_vocab_size: int) -> Toke
     raise ValueError("tokenizer_name must be 'char' or 'bpe'")
 
 
-def save_checkpoint(model: TinyTransformer, tokenizer: Tokenizer, path: str) -> None:
+def save_checkpoint(
+    model: TinyTransformer,
+    tokenizer: Tokenizer,
+    path: str,
+    optimizer: torch.optim.Optimizer | None = None,
+    step: int = 0,
+    train_config: TrainConfig | None = None,
+) -> None:
     output = Path(path)
     output.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(
-        {
+    payload = {
             "model_config": model.config.to_dict(),
             "model_state": model.state_dict(),
             "tokenizer": tokenizer.to_dict(),
-        },
-        output,
-    )
+            "step": step,
+            "parameter_count": model.parameter_count(),
+        }
+    if optimizer is not None:
+        payload["optimizer_state"] = optimizer.state_dict()
+    if train_config is not None:
+        payload["train_config"] = train_config.to_dict()
+    torch.save(payload, output)
 
 
 def load_checkpoint(path: str, device: str = "cpu") -> tuple[TinyTransformer, Tokenizer]:
@@ -135,3 +167,24 @@ def load_checkpoint(path: str, device: str = "cpu") -> tuple[TinyTransformer, To
     model.load_state_dict(payload["model_state"])
     model.eval()
     return model, tokenizer
+
+
+def evaluate_checkpoint(
+    path: str,
+    text: str,
+    batch_size: int = 32,
+    eval_batches: int = 20,
+    device: str = "cpu",
+) -> dict[str, float | int]:
+    model, tokenizer = load_checkpoint(path, device=device)
+    token_ids = tokenizer.encode(text)
+    train_ids, val_ids = split_tokens(token_ids)
+    train_data = TextDataset(train_ids, model.config.block_size, device)
+    val_data = TextDataset(val_ids, model.config.block_size, device)
+    losses = estimate_loss(model, train_data, val_data, batch_size, eval_batches)
+    return {
+        "train_loss": losses["train"],
+        "validation_loss": losses["val"],
+        "validation_perplexity": math.exp(min(losses["val"], 20)),
+        "parameter_count": model.parameter_count(),
+    }
