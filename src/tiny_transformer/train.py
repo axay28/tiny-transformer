@@ -151,6 +151,7 @@ def save_checkpoint(
             "tokenizer": tokenizer.to_dict(),
             "step": step,
             "parameter_count": model.parameter_count(),
+            "weight_tied": model.lm_head.weight is model.token_embedding.weight,
         }
     if optimizer is not None:
         payload["optimizer_state"] = optimizer.state_dict()
@@ -164,6 +165,10 @@ def load_checkpoint(path: str, device: str = "cpu") -> tuple[TinyTransformer, To
     tokenizer = tokenizer_from_dict(payload["tokenizer"])
     config = ModelConfig(**payload["model_config"])
     model = TinyTransformer(config).to(device)
+    if not payload.get("weight_tied", False):
+        # Checkpoints created before weight tying stored independent embedding and
+        # output matrices. Preserve that behavior so older demos remain compatible.
+        model.lm_head = torch.nn.Linear(config.n_embd, config.vocab_size).to(device)
     model.load_state_dict(payload["model_state"])
     model.eval()
     return model, tokenizer
